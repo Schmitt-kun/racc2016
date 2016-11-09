@@ -28,6 +28,7 @@ public final class LocalTestRendererListener {
             double radius = wizard.getRadius();
             double diameter = radius * 2.0D;
             drawRect(wizard.getX() - radius, wizard.getY() - radius, diameter, diameter);
+            
         }
     }
 
@@ -37,6 +38,14 @@ public final class LocalTestRendererListener {
 
         graphics.setColor(Color.BLACK);
         drawCircle(2600.0D, 2600.0D, 2400.0D);
+        
+        for(Wizard wizard : world.getWizards())
+        {
+        	Point2I p2w = toCanvasPosition(wizard.getX(), wizard.getY());
+        	graphics.drawString(wizard.getLife() + "/" + wizard.getMaxLife(), p2w.getX(), p2w.getY());
+        }
+        
+        
     }
 
     private void updateFields(Graphics graphics, World world, Game game, int canvasWidth, int canvasHeight,
