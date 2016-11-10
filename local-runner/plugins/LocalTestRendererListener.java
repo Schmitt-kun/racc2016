@@ -43,6 +43,8 @@ public final class LocalTestRendererListener {
         {
         	Point2I p2w = toCanvasPosition(wizard.getX(), wizard.getY());
         	graphics.drawString(wizard.getLife() + "/" + wizard.getMaxLife(), p2w.getX(), p2w.getY());
+        	
+        	mp.test();
         }
         
         
