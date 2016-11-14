@@ -16,7 +16,6 @@ public final class LocalTestRendererListener {
     private double top;
     private double width;
     private double height;
-
     public void beforeDrawScene(Graphics graphics, World world, Game game, int canvasWidth, int canvasHeight,
                                 double left, double top, double width, double height) {
         updateFields(graphics, world, game, canvasWidth, canvasHeight, left, top, width, height);
@@ -28,7 +27,6 @@ public final class LocalTestRendererListener {
             double radius = wizard.getRadius();
             double diameter = radius * 2.0D;
             drawRect(wizard.getX() - radius, wizard.getY() - radius, diameter, diameter);
-            
         }
     }
 
@@ -39,15 +37,7 @@ public final class LocalTestRendererListener {
         graphics.setColor(Color.BLACK);
         drawCircle(2600.0D, 2600.0D, 2400.0D);
         
-        for(Wizard wizard : world.getWizards())
-        {
-        	Point2I p2w = toCanvasPosition(wizard.getX(), wizard.getY());
-        	graphics.drawString(wizard.getLife() + "/" + wizard.getMaxLife(), p2w.getX(), p2w.getY());
-        	
-        	mp.test();
-        }
-        
-        
+        MyRenderer.DrawAfterScene(graphics, world, game, canvasWidth, canvasHeight, left, top, width, height);
     }
 
     private void updateFields(Graphics graphics, World world, Game game, int canvasWidth, int canvasHeight,
