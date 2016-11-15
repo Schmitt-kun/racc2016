@@ -1,6 +1,9 @@
-import java.util.*;
-import java.awt.*;
+
+
 import static java.lang.StrictMath.*;
+import java.awt.*;
+import java.util.*;
+
 import model.*;
 
 public class MyRenderer
@@ -17,6 +20,9 @@ public class MyRenderer
     private static double _width;
     private static double _height;
     
+    private static Boolean init  = false;
+    private static ArrayList<Point2I> middleLane; 
+    
     
 	public static void test()
 	{
@@ -28,15 +34,52 @@ public class MyRenderer
 	{
 		updateFields(graphics, world, game, canvasWidth, canvasHeight, left, top, width, height);
 		
+		if(!init) {
+			init(world, game);
+		}
+		
 		wizzardHp(graphics, world, game);
+		position(graphics, world, game);
+		drawWaypoints(graphics, world, game);
 	}
 	
-	public static void wizzardHp(Graphics graphics, World world, Game game)
+	public static void init(World world, Game game)
+	{
+		 middleLane = new ArrayList<>();
+		 middleLane.add(new Point2I(300.0, game.getMapSize() - 300.0D));
+		 middleLane.add(new Point2I(600.0D, game.getMapSize() - 200.0D));
+		 middleLane.add(new Point2I(200.0D, game.getMapSize() - 600.0D));
+		 middleLane.add(new Point2I(800.0D, game.getMapSize() - 800.0D));
+		 middleLane.add(new Point2I(game.getMapSize() - 600.0D, 600.0D));
+		 
+		 init = true;
+	}
+	
+	public static void wizzardHp (Graphics graphics, World world, Game game)
 	{
 		for(Wizard wizard : world.getWizards())
 		{
 			Point2I p2w = toCanvasPosition(wizard.getX(), wizard.getY());
         	graphics.drawString(wizard.getLife() + "/" + wizard.getMaxLife(), p2w.getX(), p2w.getY());
+		}
+	}
+	
+	public static void position(Graphics graphics, World world, Game game)
+	{
+		for(Wizard wizard : world.getWizards())
+		{
+			if(wizard.getOwnerPlayerId() == 3) {
+				Point2I p2w = toCanvasPosition(wizard.getX() - wizard.getRadius(), wizard.getY() + wizard.getRadius());
+				graphics.drawString(new Double(wizard.getX()).intValue() + ":" + new Double(wizard.getY()).intValue(), p2w.getX(), p2w.getY());
+			}
+		}
+	}
+	
+	public static void drawWaypoints(Graphics graphics, World world, Game game)
+	{
+		for(Point2I waypint : middleLane)
+		{
+			graphics.drawString("O", waypint.getX(), waypint.getY());
 		}
 	}
 	

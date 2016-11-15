@@ -24,6 +24,11 @@ public final class MyStrategy implements Strategy {
     private World world;
     private Game game;
     private Move move;
+    
+    private Double speed;
+    private Long ticks = 0l;
+    
+    private final Long TickLimit = 10l;
 
     /**
      * Основной метод стратегии, осуществляющий управление волшебником.
@@ -39,14 +44,14 @@ public final class MyStrategy implements Strategy {
     	
     	initializeStrategy(self, game);
         initializeTick(self, world, game, move);
-
+/*
         // Постоянно двигаемся из-стороны в сторону, чтобы по нам было сложнее попасть.
         // Считаете, что сможете придумать более эффективный алгоритм уклонения? Попробуйте! ;)
         move.setStrafeSpeed(random.nextBoolean() ? game.getWizardStrafeSpeed() : -game.getWizardStrafeSpeed());
-
+*/
         // Если осталось мало жизненной энергии, отступаем к предыдущей ключевой точке на линии.
         if (self.getLife() < self.getMaxLife() * LOW_HP_FACTOR) {
-            goTo(getPreviousWaypoint());
+            goTo(getPreviousWaypoint(), false);
             return;
         }
 
@@ -76,7 +81,7 @@ public final class MyStrategy implements Strategy {
         }
 
         // Если нет других действий, просто продвигаемся вперёд.
-        goTo(getNextWaypoint());
+        goTo(getNextWaypoint(), true);
     }
     
     /**
@@ -92,10 +97,10 @@ public final class MyStrategy implements Strategy {
             double mapSize = game.getMapSize();
 
             waypointsByLane.put(LaneType.MIDDLE, new Point2D[]{
-                    new Point2D(100.0D, mapSize - 100.0D),
+                    new Point2D(350.0D, mapSize - 350.0D),
                     random.nextBoolean()
-                            ? new Point2D(600.0D, mapSize - 200.0D)
-                            : new Point2D(200.0D, mapSize - 600.0D),
+                            ? new Point2D(600.0D, mapSize - 350.0D)
+                            : new Point2D(350.0D, mapSize - 600.0D),
                     new Point2D(800.0D, mapSize - 800.0D),
                     new Point2D(mapSize - 600.0D, 600.0D)
             });
@@ -224,7 +229,7 @@ public final class MyStrategy implements Strategy {
     /**
      * Простейший способ перемещения волшебника.
      */
-    private void goTo(Point2D point) {
+    private void goTo(Point2D point, Boolean forward) {
         double angle = self.getAngleTo(point.getX(), point.getY());
 
         move.setTurn(angle);
