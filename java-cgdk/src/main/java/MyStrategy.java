@@ -29,6 +29,33 @@ public final class MyStrategy implements Strategy {
     private Long ticks = 0l;
     
     private final Long TickLimit = 10l;
+    
+    @Override
+    public void move(Wizard self, World world, Game game, Move move)
+    {
+    	initializeTick(self, world, game, move);
+    	
+    	//world.getWidth()
+    	move.setTurn(1);
+    }
+    
+    private void chooseLane()
+    {
+    	switch((int) self.getId())
+    	{
+    	case 1:
+    	case 2:
+    	case 6: 
+		case 7:
+    		lane = LaneType.TOP;
+		case 3:
+		case 8:
+			lane = LaneType .MIDDLE;
+		default :
+			lane = LaneType.BOTTOM;
+    	}
+    }
+    
 
     /**
      * Основной метод стратегии, осуществляющий управление волшебником.
@@ -39,8 +66,8 @@ public final class MyStrategy implements Strategy {
      * @param game  Различные игровые константы.
      * @param move  Результатом работы метода является изменение полей данного объекта.
      */
-    @Override
-    public void move(Wizard self, World world, Game game, Move move) {
+    
+    public void _move(Wizard self, World world, Game game, Move move) {
     	
     	initializeStrategy(self, game);
         initializeTick(self, world, game, move);
