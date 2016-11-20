@@ -2,7 +2,7 @@ import model.*;
 import java.util.*;
 
 public final class MyStrategy implements Strategy {
-	 private static final Double WAYPOINT_RADIUS = 100.0D;
+	 private static final Double WAYPOINT_RADIUS = 10.0;
 	 private static final Double COLLISION_RADIUS = 5.0;
 
     private static final double LOW_HP_FACTOR = 0.25D;
@@ -15,16 +15,16 @@ public final class MyStrategy implements Strategy {
      */
     
     private final Map<LaneType, Point2D[]> waypointsByLane = new EnumMap<>(LaneType.class);
+    private int currentWaypoint = 1;
     private Boolean moving = false;
-
+    
     private Random random = new Random();
 
-    private LaneType lane;
+    private LaneType lane = null;
     private Point2D[] waypoints;
     
     private Double strafeSpeed = 0.0;
     
-
     private Wizard self;
     private World world;
     private Game game;
@@ -41,8 +41,6 @@ public final class MyStrategy implements Strategy {
     	initializeTick(self, world, game, move);
     	initializeStrategy(self, game);
     	
-    	//world.getWidth()
-    	
     	LivingUnit enemy = spotTarget();
     	
     	if(enemy != null)
@@ -57,8 +55,9 @@ public final class MyStrategy implements Strategy {
     
     private void walk()
     {
-    	move.setTurn(self.getAngleTo(waypoints[1].getX(), waypoints[1].getY()));
-    	if(self.getAngleTo(waypoints[1].getX(), waypoints[1].getY()) < Math.PI / 6)
+    	Point2D walkTo = selectWaypont();
+    	move.setTurn(self.getAngleTo(walkTo.getX(), walkTo.getY()));
+    	if(self.getAngleTo(walkTo.getX(), walkTo.getY()) < Math.PI / 6)
     	{
     		move.setSpeed(game.getWizardForwardSpeed());
     		moving = true;
@@ -80,6 +79,16 @@ public final class MyStrategy implements Strategy {
     	}
     }
     
+    private Point2D selectWaypont()
+    {
+    	
+    	if(currentWaypoint != waypoints.length - 1 && self.getDistanceTo(waypoints[currentWaypoint].getX(), waypoints[currentWaypoint].getY()) < WAYPOINT_RADIUS)
+    	{
+    		currentWaypoint ++;
+    	}
+    	return waypoints[currentWaypoint];
+    }
+    
     private void chooseLane()
     {
     	switch((int) self.getId())
@@ -89,9 +98,11 @@ public final class MyStrategy implements Strategy {
     	case 6: 
 		case 7:
     		lane = LaneType.TOP;
+    		break;
 		case 3:
 		case 8:
 			lane = LaneType .MIDDLE;
+			break;
 		default :
 			lane = LaneType.BOTTOM;
     	}
@@ -142,24 +153,43 @@ public final class MyStrategy implements Strategy {
     
     private void initializeStrategy(Wizard self, Game game)
     {
+    	if(lane != null)
+    		return;
+    	
     	chooseLane();
     	
     	Building[] buildings = world.getBuildings();
-    	waypoints = new Point2D[2];
     	
-    	for(Building building : buildings)
+    	if(lane == LaneType.MIDDLE)
     	{
-    		if(building.getType() == BuildingType.FACTION_BASE)
-    		{
-    			if(building.getFaction() == self.getFaction())
-    			{
-    				waypoints[0] = new Point2D(building.getX(), building.getY());
-    			}
-    			
-    		}
+	    	waypoints = new Point2D[2];
+	    	for(Building building : buildings)
+	    	{
+	    		if(building.getType() == BuildingType.FACTION_BASE)
+	    		{
+	    			if(building.getFaction() == self.getFaction())
+	    			{
+	    				waypoints[0] = new Point2D(building.getX(), building.getY());
+	    			}
+	    			
+	    		}
+	    	}
+	    	waypoints[1] = new Point2D(world.getWidth() - waypoints[0].getX(), world.getHeight() - waypoints[0].getY());
     	}
-    	
-    	waypoints[1] = new Point2D(world.getWidth() - waypoints[0].getX(), world.getHeight() - waypoints[0].getY());
+    	else if(lane == LaneType.TOP)
+    	{
+    		waypoints = new Point2D[3];
+    		waypoints[0] = new Point2D(self.getX(), self.getY());
+    		waypoints[1] = new Point2D(self.getX(), world.getHeight() - self.getY());
+    		waypoints[2] = new Point2D(world.getHeight() - self.getX(), world.getHeight() - self.getY());
+    	}
+    	else if(lane == LaneType.BOTTOM)
+    	{
+    		waypoints = new Point2D[3];
+    		waypoints[0] = new Point2D(self.getX(), self.getY());
+    		waypoints[1] = new Point2D(world.getHeight() - self.getX(), self.getY());
+    		waypoints[2] = new Point2D(world.getHeight() - self.getX(), world.getHeight() - self.getY());
+    	}
     }
 
     private LivingUnit spotTarget()
