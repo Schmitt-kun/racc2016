@@ -55,7 +55,10 @@ public final class MyStrategy implements Strategy {
     	else
     	{
     		// test if we are first in lane;
-    		walk();
+    		Point2D vanguard = findVanguard();
+    		
+    		if(!amIFirst(vanguard))
+    			walk();
     	}
     }
     
@@ -295,7 +298,6 @@ public final class MyStrategy implements Strategy {
     		else
     		{	// after turn
     			diff = self.getX() - (world.getWidth() - LANE_WIDTH/2);
-    			System.out.println(diff);
     			angle = - Math.PI/2 - self.getAngle();
     			retreatMove(diff, speed, angle);
     		}
@@ -431,6 +433,123 @@ public final class MyStrategy implements Strategy {
         	return nearestTarget;
         
         return null;
+    }
+    
+    
+    private Point2D findVanguard()
+    {	
+    	Point2D object = null;
+    	
+    	for(Building building : world.getBuildings())
+    	{
+    		if(building.getFaction() == self.getFaction())
+    		{
+    			switch(lane)
+    			{
+    			case MIDDLE:
+    				if(building.getY() - (world.getWidth() - building.getX()) <= LANE_WIDTH)
+    				{	
+    					if(object == null)
+    						object = new Point2D(building.getX(), building.getY());
+    					else if(object.getX() - object.getY() < building.getX() - building.getY())
+    					{
+    						object = new Point2D(building.getX(), building.getY());
+    					}
+    				}
+    				break;
+    			case TOP:
+    				if(building.getX() <= LANE_WIDTH)
+    				{
+    					if(object == null)
+    						object = new Point2D(building.getX(), building.getY());
+    					else if(object.getY() > building.getY())
+    					{
+    						object = new Point2D(building.getX(), building.getY());
+    					}
+    				}
+    				break;
+    			case BOTTOM:
+    				if(building.getY() >= world.getHeight() - LANE_WIDTH)
+    				{
+    					if(object == null)
+    						object = new Point2D(building.getX(), building.getY());
+    					else if(object.getX() < building.getX())
+    						object = new Point2D(building.getX(), building.getY());
+    				}
+    			}
+    		}
+    	}
+    	
+    	for(Minion minion : world.getMinions())
+    	{
+    		if(minion.getFaction() == self.getFaction())
+    		{
+    			switch(lane)
+    			{
+    			case MIDDLE:
+    				if(minion.getY() - (world.getWidth() - minion.getX()) <= LANE_WIDTH)
+    				{	
+    					if(object.getX() - object.getY() < minion.getX() - minion.getY())
+    						object = new Point2D(minion.getX(), minion.getY());
+    				}
+    				break;
+    			case TOP:
+    				if(minion.getY() < LANE_WIDTH)
+    				{
+    					if(object.getX() < minion.getX() || object.getY() > LANE_WIDTH)
+    						object = new Point2D(minion.getX(), minion.getY());
+    				}
+    				else if(minion.getX() <= LANE_WIDTH && !(object.getY() < LANE_WIDTH))
+    				{
+    					if(object.getY() > minion.getY())
+    						object = new Point2D(minion.getX(), minion.getY());
+    				}
+    				break;
+    			case BOTTOM:
+    				if(minion.getX() >= world.getWidth() - LANE_WIDTH)
+    				{
+    					if(object.getY() > minion.getY())
+    						object = new Point2D(minion.getX(), minion.getY());
+    				}
+    				if(minion.getY() >= world.getHeight() - LANE_WIDTH)
+    				{
+    					if(object.getX() < minion.getX())
+    						object = new Point2D(minion.getX(), minion.getY());
+    				}
+    			}
+    		}
+    	}
+    	
+    	return object;
+    }
+    
+    private Boolean amIFirst(Point2D vanguard)
+    {
+    	switch(lane)
+    	{
+    	case MIDDLE:
+    		if(self.getX() - self.getY() > vanguard.getX() - vanguard.getY() - self.getRadius()*2)
+    			return true;
+    		return false;
+    	case TOP:
+    		if(self.getX() < LANE_WIDTH)
+    		{
+    			return self.getY() < vanguard.getY() + self.getRadius()*2;
+    		}	
+    		if(vanguard.getX() > LANE_WIDTH)
+				return false;
+    		return self.getX() < vanguard.getX() - self.getRadius()*2;
+    	case BOTTOM:
+    		if(self.getY() > world.getHeight() - LANE_WIDTH)
+    		{
+    			return self.getX() > vanguard.getX() - self.getRadius()*2;
+    		}	
+    		if(vanguard.getY() <  world.getHeight() - LANE_WIDTH)
+				return false;
+    		return self.getY() > vanguard.getY() + self.getRadius()*2;
+    	}
+    	
+    	return false;
     }
    
 
