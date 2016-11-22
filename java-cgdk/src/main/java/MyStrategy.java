@@ -21,7 +21,6 @@ public final class MyStrategy implements Strategy {
     private Random random = new Random();
 
     private LaneType lane = null;
-    private Point2D[] waypoints;
     
     private Double strafeSpeed = 0.0;
     
@@ -30,8 +29,7 @@ public final class MyStrategy implements Strategy {
     private Game game;
     private Move move;
     
-    private Double speed;
-    private Long ticks = 0l;
+    private Double LANE_WIDTH;
     
     private final Long TickLimit = 10l;
     
@@ -81,12 +79,45 @@ public final class MyStrategy implements Strategy {
     
     private Point2D selectWaypont()
     {
+    	switch(lane){
+    	case MIDDLE:
+    		System.out.println("mid");
+    		return waypointsByLane.get(LaneType.MIDDLE)[0];
+    	case TOP:
+    		System.out.print("top ");
+    		if(self.getY() > LANE_WIDTH)
+    		{	// До поворота
+    			System.out.println("before");
+    			return waypointsByLane.get(LaneType.TOP)[1];
+    		}
+    		else
+    		{
+    			System.out.println("after");
+    			return waypointsByLane.get(LaneType.TOP)[2];
+    		}
+    	case BOTTOM:
+    		System.out.print("bot ");
+    		if(self.getX() < world.getWidth() - LANE_WIDTH)
+    		{	// До поворота
+    			System.out.println("before");
+    			return waypointsByLane.get(LaneType.BOTTOM)[1];
+    		}
+    		else
+    		{
+    			System.out.println("after");
+    			return waypointsByLane.get(LaneType.BOTTOM)[2];
+    		}
+    	default:
+    		return new Point2D(world.getWidth() - LANE_WIDTH, LANE_WIDTH);
+    	}
     	
+    	/*
     	if(currentWaypoint != waypoints.length - 1 && self.getDistanceTo(waypoints[currentWaypoint].getX(), waypoints[currentWaypoint].getY()) < WAYPOINT_RADIUS)
     	{
     		currentWaypoint ++;
     	}
     	return waypoints[currentWaypoint];
+    	*/
     }
     
     private void chooseLane()
@@ -156,40 +187,41 @@ public final class MyStrategy implements Strategy {
     	if(lane != null)
     		return;
     	
+    	
+    	
     	chooseLane();
     	
     	Building[] buildings = world.getBuildings();
     	
-    	if(lane == LaneType.MIDDLE)
+    	Point2D[] waypointsM;
+    	
+    	waypointsM = new Point2D[1];
+    	for(Building building : buildings)
     	{
-	    	waypoints = new Point2D[2];
-	    	for(Building building : buildings)
-	    	{
-	    		if(building.getType() == BuildingType.FACTION_BASE)
-	    		{
-	    			if(building.getFaction() == self.getFaction())
-	    			{
-	    				waypoints[0] = new Point2D(building.getX(), building.getY());
-	    			}
-	    			
-	    		}
-	    	}
-	    	waypoints[1] = new Point2D(world.getWidth() - waypoints[0].getX(), world.getHeight() - waypoints[0].getY());
+    		if(building.getType() == BuildingType.FACTION_BASE)
+    		{
+    			if(building.getFaction() == self.getFaction())
+    			{
+    				LANE_WIDTH = building.getX();
+    			}
+    			
+    		}
     	}
-    	else if(lane == LaneType.TOP)
-    	{
-    		waypoints = new Point2D[3];
-    		waypoints[0] = new Point2D(self.getX(), self.getY());
-    		waypoints[1] = new Point2D(self.getX(), world.getHeight() - self.getY());
-    		waypoints[2] = new Point2D(world.getHeight() - self.getX(), world.getHeight() - self.getY());
-    	}
-    	else if(lane == LaneType.BOTTOM)
-    	{
-    		waypoints = new Point2D[3];
-    		waypoints[0] = new Point2D(self.getX(), self.getY());
-    		waypoints[1] = new Point2D(world.getHeight() - self.getX(), self.getY());
-    		waypoints[2] = new Point2D(world.getHeight() - self.getX(), world.getHeight() - self.getY());
-    	}
+    	
+    	waypointsM[0] = new Point2D(world.getWidth() - LANE_WIDTH/2, LANE_WIDTH/2);
+    	waypointsByLane.put(LaneType.MIDDLE,waypointsM);
+    	
+		Point2D[] waypointsT = new Point2D[3];
+		waypointsT[0] = new Point2D(LANE_WIDTH, world.getHeight() - LANE_WIDTH);
+		waypointsT[1] = new Point2D(LANE_WIDTH/2, LANE_WIDTH/2);
+		waypointsT[2] = new Point2D(world.getWidth() - LANE_WIDTH/2, LANE_WIDTH/2);
+		waypointsByLane.put(LaneType.TOP, waypointsT);
+		
+		Point2D[] waypointsB = new Point2D[3];
+		waypointsB[0] = new Point2D(LANE_WIDTH, world.getHeight() - LANE_WIDTH);
+		waypointsB[1] = new Point2D(world.getWidth() - LANE_WIDTH/2, world.getHeight() - LANE_WIDTH/2);
+		waypointsB[2] = new Point2D(world.getWidth() - LANE_WIDTH/2, LANE_WIDTH/2);
+    	waypointsByLane.put(LaneType.BOTTOM, waypointsB);
     }
 
     private LivingUnit spotTarget()
