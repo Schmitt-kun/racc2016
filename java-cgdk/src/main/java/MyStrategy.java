@@ -528,25 +528,25 @@ public final class MyStrategy implements Strategy {
     	switch(lane)
     	{
     	case MIDDLE:
-    		if(self.getX() - self.getY() > vanguard.getX() - vanguard.getY() - self.getRadius()*2)
+    		if(self.getX() - self.getY() > vanguard.getX() - vanguard.getY())
     			return true;
     		return false;
     	case TOP:
     		if(self.getX() < LANE_WIDTH)
     		{
-    			return self.getY() < vanguard.getY() + self.getRadius()*2;
+    			return self.getY() < vanguard.getY();
     		}	
     		if(vanguard.getX() > LANE_WIDTH)
 				return false;
-    		return self.getX() < vanguard.getX() - self.getRadius()*2;
+    		return self.getX() < vanguard.getX();
     	case BOTTOM:
     		if(self.getY() > world.getHeight() - LANE_WIDTH)
     		{
-    			return self.getX() > vanguard.getX() - self.getRadius()*2;
+    			return self.getX() > vanguard.getX();
     		}	
     		if(vanguard.getY() <  world.getHeight() - LANE_WIDTH)
 				return false;
-    		return self.getY() > vanguard.getY() + self.getRadius()*2;
+    		return self.getY() > vanguard.getY();
     	}
     	
     	return false;
