@@ -29,8 +29,6 @@ public final class LocalTestRendererListener {
             double diameter = radius * 2.0D;
             drawRect(wizard.getX() - radius, wizard.getY() - radius, diameter, diameter);
         }
-        
-        MyRenderer.DrawAfterScene(graphics, world, game, canvasWidth, canvasHeight, left, top, width, height);
     }
 
     public void afterDrawScene(Graphics graphics, World world, Game game, int canvasWidth, int canvasHeight,
@@ -39,6 +37,8 @@ public final class LocalTestRendererListener {
 
         graphics.setColor(Color.BLACK);
         drawCircle(2600.0D, 2600.0D, 2400.0D);
+        
+        MyRenderer.DrawAfterScene(graphics, world, game, canvasWidth, canvasHeight, left, top, width, height);
     }
 
     private void updateFields(Graphics graphics, World world, Game game, int canvasWidth, int canvasHeight,
