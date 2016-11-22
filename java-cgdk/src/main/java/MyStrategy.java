@@ -2,10 +2,17 @@ import model.*;
 import java.util.*;
 
 public final class MyStrategy implements Strategy {
-	 private static final Double WAYPOINT_RADIUS = 10.0;
+	 //private static final Double WAYPOINT_RADIUS = 10.0;
 	 private static final Double COLLISION_RADIUS = 5.0;
 
     private static final double LOW_HP_FACTOR = 0.25D;
+    
+    // Wizzard direction.
+    private enum WD
+    {
+    	STD, FWD, BWD, FULL_BWD;
+    };
+   
 
     /**
      * Ключевые точки для каждой линии, позволяющие упростить управление перемещением волшебника.
@@ -15,8 +22,8 @@ public final class MyStrategy implements Strategy {
      */
     
     private final Map<LaneType, Point2D[]> waypointsByLane = new EnumMap<>(LaneType.class);
-    private int currentWaypoint = 1;
     private Boolean moving = false;
+    private WD myTactic;
     
     private Random random = new Random();
 
@@ -47,12 +54,15 @@ public final class MyStrategy implements Strategy {
     	}
     	else
     	{
+    		// test if we are first in lane;
     		walk();
     	}
     }
     
     private void walk()
     {
+    	myTactic = WD.FWD;
+    	
     	Point2D walkTo = selectWaypont();
     	move.setTurn(self.getAngleTo(walkTo.getX(), walkTo.getY()));
     	if(self.getAngleTo(walkTo.getX(), walkTo.getY()) < Math.PI / 6)
@@ -61,6 +71,11 @@ public final class MyStrategy implements Strategy {
     		moving = true;
     	}
     	
+    	collision();
+    }
+    
+    private void collision()
+    {
     	Unit u = collisionDetector();
     	if(u != null)
     	{
@@ -81,34 +96,34 @@ public final class MyStrategy implements Strategy {
     {
     	switch(lane){
     	case MIDDLE:
-    		System.out.println("mid");
+    		//System.out.println("mid");
     		return waypointsByLane.get(LaneType.MIDDLE)[0];
     	case TOP:
-    		System.out.print("top ");
+    		//System.out.print("top ");
     		if(self.getY() > LANE_WIDTH)
     		{	// До поворота
-    			System.out.println("before");
+    			//System.out.println("before");
     			return waypointsByLane.get(LaneType.TOP)[1];
     		}
     		else
     		{
-    			System.out.println("after");
+    			//System.out.println("after");
     			return waypointsByLane.get(LaneType.TOP)[2];
     		}
     	case BOTTOM:
-    		System.out.print("bot ");
+    		//System.out.print("bot ");
     		if(self.getX() < world.getWidth() - LANE_WIDTH)
     		{	// До поворота
-    			System.out.println("before");
+    			//System.out.println("before");
     			return waypointsByLane.get(LaneType.BOTTOM)[1];
     		}
     		else
     		{
-    			System.out.println("after");
+    			//System.out.println("after");
     			return waypointsByLane.get(LaneType.BOTTOM)[2];
     		}
     	default:
-    		return new Point2D(world.getWidth() - LANE_WIDTH, LANE_WIDTH);
+    		return new Point2D(world.getWidth() - LANE_WIDTH/2, LANE_WIDTH/2);
     	}
     	
     	/*
@@ -147,10 +162,66 @@ public final class MyStrategy implements Strategy {
     	
     	for(Building b : world.getBuildings())
     	{	
-    		if(Math.abs(self.getAngleTo(b)) < Math.PI / 2 &&
-    				self.getDistanceTo(b) < self.getRadius() + b.getRadius() + COLLISION_RADIUS)
+    		if(myTactic == WD.FWD)
     		{
-    			return b;
+	    		if(Math.abs(self.getAngleTo(b)) < Math.PI / 2 &&
+	    				self.getDistanceTo(b) < self.getRadius() + b.getRadius() + COLLISION_RADIUS)
+	    		{
+	    			return b;
+	    		}
+    		}
+    		else
+    		{
+    			if(Math.abs(self.getAngleTo(b)) > Math.PI / 2 &&
+	    				self.getDistanceTo(b) < self.getRadius() + b.getRadius() + COLLISION_RADIUS)
+	    		{
+	    			return b;
+	    		}
+    		}
+    	}
+    	
+    	for(Minion u : world.getMinions())
+    	{	
+    		if(myTactic == WD.FWD)
+    		{
+	    		if(Math.abs(self.getAngleTo(u)) < Math.PI / 2 &&
+	    				self.getDistanceTo(u) < self.getRadius() + u.getRadius() + COLLISION_RADIUS)
+	    		{
+	    			return u;
+	    		}
+    		}
+    		else
+    		{
+    			if(Math.abs(self.getAngleTo(u)) > Math.PI / 2 &&
+	    				self.getDistanceTo(u) < self.getRadius() + u.getRadius() + COLLISION_RADIUS)
+	    		{
+	    			return u;
+	    		}
+    		}
+    	}
+    	
+    	return null;
+    }
+    
+    private Tree treeCollisionDetector()
+    {
+    	for(Tree t : world.getTrees())
+    	{
+    		if(myTactic == WD.FWD)
+    		{
+	    		if(Math.abs(self.getAngleTo(t)) < Math.PI / 2 &&
+	    				self.getDistanceTo(t) < self.getRadius() + t.getRadius() + COLLISION_RADIUS)
+	    		{
+	    			return t;
+	    		}
+    		}
+    		else
+    		{
+    			if(Math.abs(self.getAngleTo(t)) > Math.PI / 2 &&
+	    				self.getDistanceTo(t) < self.getRadius() + t.getRadius() + COLLISION_RADIUS)
+	    		{
+	    			return t;
+	    		}
     		}
     	}
     	
@@ -165,10 +236,115 @@ public final class MyStrategy implements Strategy {
     	if(Math.abs(self.getAngleTo(target)) < game.getStaffSector() / 2.0D)
     		move.setAction(ActionType.MAGIC_MISSILE);
     	
-    	if(self.getDistanceTo(target) < self.getCastRange() * 0.9)
+    	if(self.getDistanceTo(target) < self.getCastRange() * 0.8)
     	{
-    		move.setSpeed(-game.getWizardForwardSpeed() / 2);
+    		if(self.getLife() < LOW_HP_FACTOR * self.getMaxLife())
+    		{
+    			myTactic = WD.FULL_BWD;
+    		}
+    		else if(self.getDistanceTo(target) < self.getCastRange() * 0.4)
+    		{
+    			myTactic = WD.FULL_BWD;
+    		}
+    		else
+    		{
+    			myTactic = WD.BWD;
+    		}
+    		retreat();
     	}
+    	else
+    	{
+    		myTactic = WD.STD;
+    	}
+    }
+    
+    private void retreat()
+    {
+    	Double diff = 0.0;
+    	Double angle = 0.0;
+    	Double speed = game.getWizardBackwardSpeed();
+    	switch(lane)
+    	{
+    	case MIDDLE:
+    		diff = (self.getY() - (world.getWidth() - self.getX())) / 1.4;
+    		angle = - Math.PI/4 - self.getAngle();
+    		retreatMove(diff, speed, angle);
+    		break;
+    	case TOP:
+    		if(self.getX() < LANE_WIDTH)
+    		{	// before turn
+    			diff = self.getX() - LANE_WIDTH/2;
+    			angle = - Math.PI/2 - self.getAngle();
+    			retreatMove(diff, speed, angle);
+    		}
+    		else
+    		{	// after turn
+    			diff = self.getY() - LANE_WIDTH/2;
+    			retreatMove(diff, speed, self.getAngle());
+    		}
+    		break;
+    	case BOTTOM:
+    		if(self.getY() > world.getHeight() - LANE_WIDTH)
+    		{	// before turnn
+    			diff = self.getY() - (world.getHeight() - LANE_WIDTH/2);
+    			retreatMove(diff, speed, self.getAngle());
+    		}
+    		else
+    		{	// after turn
+    			diff = self.getX() - (world.getWidth() - LANE_WIDTH/2);
+    			System.out.println(diff);
+    			angle = - Math.PI/2 - self.getAngle();
+    			retreatMove(diff, speed, angle);
+    		}
+    	}
+    	
+		//move.setSpeed(-);
+    }
+    
+    private void retreatMove(Double diff, Double speed, Double angle)
+    {
+    	Double revert = (Math.abs(angle) <= Math.PI/2) ? 1.0 : -1.0;
+    	if(diff > 0)
+		{
+    		if(myTactic == WD.BWD)
+    		{
+    			move.setSpeed(-0.5 * speed / 1.4);
+    			move.setStrafeSpeed(-0.5 * speed * revert / 1.4);
+    		}
+    		else
+    		{
+    			if(diff < self.getRadius() * 2)
+    			{
+    				move.setSpeed(-speed);
+    			}
+    			else
+    			{
+    				move.setSpeed(-speed / 1.4);
+    				move.setStrafeSpeed(speed * revert / 1.4);
+    			}
+    		}
+		}
+		else
+		{
+			if(myTactic == WD.BWD)
+			{
+				move.setSpeed(-0.5 * speed / 1.4);
+				move.setStrafeSpeed(0.5 * speed * revert / 1.4);
+			}
+			else
+			{
+				if(diff < self.getRadius() * 2)
+				{
+					move.setSpeed(-speed);
+				}
+				else
+				{
+					move.setSpeed(-speed / 1.4);
+					move.setStrafeSpeed(speed * revert / 1.4);
+				}
+			}
+			
+		}
     }
    
     
@@ -187,7 +363,7 @@ public final class MyStrategy implements Strategy {
     	if(lane != null)
     		return;
     	
-    	
+    	myTactic = WD.STD;
     	
     	chooseLane();
     	
