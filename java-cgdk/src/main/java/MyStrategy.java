@@ -3,14 +3,14 @@ import java.util.*;
 
 public final class MyStrategy implements Strategy {
 	 //private static final Double WAYPOINT_RADIUS = 10.0;
-	 private static final Double COLLISION_RADIUS = 5.0;
+	 private static final Double COLLISION_RADIUS = 4.0;
 
     private static final double LOW_HP_FACTOR = 0.25D;
     
     // Wizzard direction.
     private enum WD
     {
-    	STD, FWD, BWD, FULL_BWD;
+    	STD, FWD, BWD, FULL_BWD, BONUS, BONUS_BACK;
     };
    
 
@@ -22,6 +22,8 @@ public final class MyStrategy implements Strategy {
      */
     
     private final Map<LaneType, Point2D[]> waypointsByLane = new EnumMap<>(LaneType.class);
+    private final Map<LaneType, Point2D>   runeZone = new EnumMap<>(LaneType.class);
+    private final List<Point2D> runes = new ArrayList<>();
     private Boolean moving = false;
     private WD myTactic;
     private Boolean iAmStuck = false;
@@ -75,6 +77,8 @@ public final class MyStrategy implements Strategy {
     	
     	Point2D walkTo = selectWaypont();
     	move.setTurn(self.getAngleTo(walkTo.getX(), walkTo.getY()));
+    	if(self.getDistanceTo(walkTo.getX(), walkTo.getY()) < self.getRadius() * 3)
+    		return;
     	if(self.getAngleTo(walkTo.getX(), walkTo.getY()) < Math.PI / 6)
     	{
     		move.setSpeed(game.getWizardForwardSpeed());
@@ -87,7 +91,7 @@ public final class MyStrategy implements Strategy {
     private void collision()
     {
     	List<Unit> u = collisionDetector();
-    	if(!u.isEmpty())
+    	if(u != null && !u.isEmpty())
     	{
     		if(u.size() == 1)
     		{
@@ -187,7 +191,7 @@ public final class MyStrategy implements Strategy {
     private List<Unit> collisionDetector()
     {
     	List<Unit> result = new ArrayList<Unit>();
-    	if(moving != true)
+    	if(moving != true || !iAmStuck)
     		return null;
     	
     	
@@ -258,16 +262,12 @@ public final class MyStrategy implements Strategy {
     
     private void stuckCounter()
     {
-    	if(stuckTick + 40 < world.getTickIndex())
-    	{
-    		return;
-    	}
      	iAmStuck = false;
     	if(myTactic == WD.FWD)
     	{
     		if(Math.abs(self.getSpeedX()) + Math.abs(self.getSpeedY()) < 1.0)
     		{
-    			if(stopTick  + 20/*world.getTickCount() / 250*/ < world.getTickIndex())
+    			if(stopTick  + 3/*world.getTickCount() / 250*/ < world.getTickIndex())
     			{
     				iAmStuck = true;
     				stuckTick = world.getTickIndex();
@@ -465,20 +465,31 @@ public final class MyStrategy implements Strategy {
     		}
     	}
     	
-    	waypointsM[0] = new Point2D(world.getWidth() - LANE_WIDTH/2, LANE_WIDTH/2);
+    	// lanes waypoints
+    	
+    	waypointsM[0] = new Point2D(world.getWidth() - LANE_WIDTH * 2.5, LANE_WIDTH * 2.5);
     	waypointsByLane.put(LaneType.MIDDLE,waypointsM);
     	
 		Point2D[] waypointsT = new Point2D[3];
 		waypointsT[0] = new Point2D(LANE_WIDTH, world.getHeight() - LANE_WIDTH);
 		waypointsT[1] = new Point2D(LANE_WIDTH/2, LANE_WIDTH/2);
-		waypointsT[2] = new Point2D(world.getWidth() - LANE_WIDTH/2, LANE_WIDTH/2);
+		waypointsT[2] = new Point2D(world.getWidth() - LANE_WIDTH * 3, LANE_WIDTH / 2);
 		waypointsByLane.put(LaneType.TOP, waypointsT);
 		
 		Point2D[] waypointsB = new Point2D[3];
 		waypointsB[0] = new Point2D(LANE_WIDTH, world.getHeight() - LANE_WIDTH);
 		waypointsB[1] = new Point2D(world.getWidth() - LANE_WIDTH/2, world.getHeight() - LANE_WIDTH/2);
-		waypointsB[2] = new Point2D(world.getWidth() - LANE_WIDTH/2, LANE_WIDTH/2);
+		waypointsB[2] = new Point2D(world.getWidth() - LANE_WIDTH/2, LANE_WIDTH * 3);
     	waypointsByLane.put(LaneType.BOTTOM, waypointsB);
+    	
+    	// lanes rune zone
+    	runeZone.put(LaneType.MIDDLE, new Point2D(world.getWidth() / 2, world.getHeight() / 2));
+    	runeZone.put(LaneType.TOP, new Point2D(LANE_WIDTH * 1.4, LANE_WIDTH * 1.4));
+    	runeZone.put(LaneType.TOP, new Point2D(world.getWidth() - LANE_WIDTH * 1.4, world.getHeight() - LANE_WIDTH * 1.4));
+    	
+    	// run spots
+    	runes.add(new Point2D(1200, 1200));
+    	runes.add(new Point2D(2800, 2800));
     }
 
     private LivingUnit spotTarget()
@@ -625,6 +636,139 @@ public final class MyStrategy implements Strategy {
     		return self.getY() > vanguard.getY();
     	}
     	
+    	return false;
+    }
+    
+    
+    //*******************************************************************************************************************
+    //		Bonus section
+    //*******************************************************************************************************************
+    
+    private void takeBonus()
+    {
+    	Point2D bonus = getBonusPos();
+    	if(isBonusHere())
+    	{ // walk to bonus
+    		myTactic = WD.BONUS;
+    		move.setTurn(self.getAngleTo(bonus.getX(), bonus.getY()));
+    		move.setSpeed(game.getWizardForwardSpeed());
+    	}
+    	/*
+    	else
+    	{
+    		if(self.getDistanceTo(runeZone.get(lane).getX(), runeZone.get(lane).getY()) >  LANE_WIDTH);
+    	}
+    	*/
+    	
+    }
+    
+    private Boolean canTakeBonus()
+    {
+    	if(myTactic != WD.FWD && myTactic != WD.BONUS)
+    		return false;
+    		
+    	if(isBonusSeen() && canITakeBonuz() && canIHazBonus())
+    		return true;
+    	
+    	if(isItBonusTime() && isItBonusZone() && canIHazBonus() && canITakeBonuz())
+    		return true;
+    	return false;
+    }
+    
+    private Integer getNextBonusSpawn()
+    {
+    	Integer tick = game.getTickCount();
+    	return (tick / 2500) + 2500;
+    }
+    
+    private Point2D getBonusPos()
+    {
+    	if(self.getX() + self.getY() < world.getWidth())
+    		return runes.get(0);
+    	return runes.get(1);
+    }
+    
+    private Boolean isItBonusTime()
+    {
+    	Point2D bonus = getBonusPos();
+    	if(self.getDistanceTo(bonus.getX(), bonus.getY()) / game.getWizardForwardSpeed() < getNextBonusSpawn() + 100)
+    		return true;
+    	return false;	
+    }
+    
+    private Boolean isItBonusZone()
+    {
+    	Point2D myZone = runeZone.get(lane);
+    	if(self.getDistanceTo(myZone.getX(), myZone.getY()) < 2 * game.getWizardCastRange())
+    			return true;
+    	return false;
+    }
+    
+    /**
+     * Проверяет что наша линия достаточно отпушена чтобы взять бонус.
+     * @return
+     */
+    private Boolean canIHazBonus()
+    {
+    	for(Minion m : world.getMinions())
+    	{
+    		if(m.getFaction() == self.getFaction())
+    		{
+    			if(self.getDistanceTo(m) < self.getVisionRange())
+    			{
+    				if(m.getX() > m.getY())
+    					return true;
+    			}
+    		}
+    	}
+    	return false;
+    }
+    
+    /**
+     * Проверяет являемся ли мы ближайшим к бонусу волшебником.
+     * @return
+     */
+    private Boolean canITakeBonuz()
+    {
+    	Point2D bonus = getBonusPos();
+    	Double myDistance = self.getDistanceTo(bonus.getX(), bonus.getY());
+    	for(Wizard w : world.getWizards())
+    	{
+    		if(!w.isMe())
+    			if(Math.abs(w.getAngleTo(bonus.getX(), bonus.getY())) < Math.PI / 8)
+    				if(w.getDistanceTo(bonus.getX(), bonus.getY()) < myDistance)
+    					return false;
+    	}
+    	return true;
+    }
+    
+    private Boolean isBonusHere()
+    {
+    	Point2D bonus = getBonusPos();
+    	if(self.getDistanceTo(bonus.getX(),  bonus.getY()) < self.getVisionRange())
+    	{
+    		for(Bonus b : world.getBonuses())
+    		{
+    			if(b.getX() == bonus.getX() && b.getY() == bonus.getY())
+    				return true;
+    		}
+    		return false;
+    	}
+    	return true;
+    }
+    
+    private Boolean isBonusSeen()
+    {
+    	Point2D bonus = getBonusPos();
+    	if(self.getDistanceTo(bonus.getX(),  bonus.getY()) < self.getVisionRange())
+    	{
+    		for(Bonus b : world.getBonuses())
+    		{
+    			if(b.getX() == bonus.getX() && b.getY() == bonus.getY())
+    				return true;
+    		}
+    		return false;
+    	}
     	return false;
     }
    
