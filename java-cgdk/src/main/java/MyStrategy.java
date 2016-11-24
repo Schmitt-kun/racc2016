@@ -24,6 +24,10 @@ public final class MyStrategy implements Strategy {
     private final Map<LaneType, Point2D[]> waypointsByLane = new EnumMap<>(LaneType.class);
     private Boolean moving = false;
     private WD myTactic;
+    private Boolean iAmStuck = false;
+    private Integer stopTick = 0;
+    private Integer stuckTick = 20_000;
+    
     
     private Random random = new Random();
 
@@ -60,6 +64,9 @@ public final class MyStrategy implements Strategy {
     		if(!amIFirst(vanguard))
     			walk();
     	}
+    	
+    	stuckCounter();
+    	
     }
     
     private void walk()
@@ -79,19 +86,38 @@ public final class MyStrategy implements Strategy {
     
     private void collision()
     {
-    	Unit u = collisionDetector();
-    	if(u != null)
+    	List<Unit> u = collisionDetector();
+    	if(!u.isEmpty())
     	{
-    		Double angle = self.getAngleTo(u);
-    		if(angle != 0){
-    			strafeSpeed = -10 * Math.signum(angle);
+    		if(u.size() == 1)
+    		{
+	    		Double angle = self.getAngleTo(u.get(0));
+	    		if(angle != 0){
+	    			strafeSpeed = -10 * Math.signum(angle);
+	    		}
+	    		else {
+	    			if(strafeSpeed == 0)
+	    				strafeSpeed = random.nextBoolean() ? 10.0 : -10.0;
+	    		}
+	    		move.setSpeed(0);
+	    		move.setStrafeSpeed(strafeSpeed);
     		}
-    		else {
-    			if(strafeSpeed == 0)
-    				strafeSpeed = random.nextBoolean() ? 10.0 : -10.0;
+    		else
+    		{
+    			Double res = 0.0;
+    			for(Unit unit : u)
+    			{
+    				res += self.getAngleTo(unit);
+    			}
+    			res = res / (u.size() + 1);
+    			if(res > 0)
+    				res -= Math.PI;
+    			else
+    				res += Math.PI;
+    			Double vel = game.getWizardBackwardSpeed();
+    			move.setSpeed(vel * Math.cos(res));
+    			move.setStrafeSpeed(vel * Math.sin(res));
     		}
-    		move.setSpeed(0);
-    		move.setStrafeSpeed(strafeSpeed);
     	}
     }
     
@@ -158,10 +184,12 @@ public final class MyStrategy implements Strategy {
     }
     
     
-    private Unit collisionDetector()
+    private List<Unit> collisionDetector()
     {
+    	List<Unit> result = new ArrayList<Unit>();
     	if(moving != true)
     		return null;
+    	
     	
     	for(Building b : world.getBuildings())
     	{	
@@ -170,7 +198,7 @@ public final class MyStrategy implements Strategy {
 	    		if(Math.abs(self.getAngleTo(b)) < Math.PI / 2 &&
 	    				self.getDistanceTo(b) < self.getRadius() + b.getRadius() + COLLISION_RADIUS)
 	    		{
-	    			return b;
+	    			result.add(b);
 	    		}
     		}
     		else
@@ -178,7 +206,7 @@ public final class MyStrategy implements Strategy {
     			if(Math.abs(self.getAngleTo(b)) > Math.PI / 2 &&
 	    				self.getDistanceTo(b) < self.getRadius() + b.getRadius() + COLLISION_RADIUS)
 	    		{
-	    			return b;
+    				result.add(b);
 	    		}
     		}
     	}
@@ -190,7 +218,7 @@ public final class MyStrategy implements Strategy {
 	    		if(Math.abs(self.getAngleTo(u)) < Math.PI / 2 &&
 	    				self.getDistanceTo(u) < self.getRadius() + u.getRadius() + COLLISION_RADIUS)
 	    		{
-	    			return u;
+	    			result.add(u);
 	    		}
     		}
     		else
@@ -198,12 +226,59 @@ public final class MyStrategy implements Strategy {
     			if(Math.abs(self.getAngleTo(u)) > Math.PI / 2 &&
 	    				self.getDistanceTo(u) < self.getRadius() + u.getRadius() + COLLISION_RADIUS)
 	    		{
-	    			return u;
+    				result.add(u);
 	    		}
     		}
     	}
     	
-    	return null;
+    	for(Wizard w : world.getWizards())
+    	{	
+    		if(w.isMe())
+    			continue;
+    		if(myTactic == WD.FWD)
+    		{
+	    		if(((Math.abs(self.getAngleTo(w)) < Math.PI / 2) || iAmStuck ) &&
+	    				self.getDistanceTo(w) < self.getRadius() + w.getRadius() + COLLISION_RADIUS)
+	    		{
+	    			result.add(w);
+	    		}
+    		}
+    		else
+    		{
+    			if(((Math.abs(self.getAngleTo(w)) > Math.PI / 2) || iAmStuck) &&
+	    				self.getDistanceTo(w) < self.getRadius() + w.getRadius() + COLLISION_RADIUS)
+	    		{
+    				result.add(w);
+	    		}
+    		}
+    	}
+    	
+    	return result;
+    }
+    
+    private void stuckCounter()
+    {
+    	if(stuckTick + 40 < world.getTickIndex())
+    	{
+    		return;
+    	}
+     	iAmStuck = false;
+    	if(myTactic == WD.FWD)
+    	{
+    		if(Math.abs(self.getSpeedX()) + Math.abs(self.getSpeedY()) < 1.0)
+    		{
+    			if(stopTick  + 20/*world.getTickCount() / 250*/ < world.getTickIndex())
+    			{
+    				iAmStuck = true;
+    				stuckTick = world.getTickIndex();
+    			}
+    		}
+    		else{
+    			stopTick = world.getTickIndex();
+    		}
+    	}
+    	else
+    		stopTick = world.getTickIndex();
     }
     
     private Tree treeCollisionDetector()
