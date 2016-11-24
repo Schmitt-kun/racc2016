@@ -239,7 +239,8 @@ public final class MyStrategy implements Strategy {
     	if(Math.abs(self.getAngleTo(target)) < game.getWizardCastRange())
     	{
     		move.setCastAngle(self.getAngleTo(target));
-    		move.setAction(ActionType.MAGIC_MISSILE);
+    		if(Math.abs(self.getAngleTo(target)) < game.getStaffSector() / 2.0)
+    			move.setAction(ActionType.MAGIC_MISSILE);
     	}
     	
     	if(self.getDistanceTo(target) < self.getCastRange() * 0.8)
