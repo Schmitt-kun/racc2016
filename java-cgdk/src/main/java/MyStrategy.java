@@ -63,6 +63,13 @@ public final class MyStrategy implements Strategy {
     		// test if we are first in lane;
     		Point2D vanguard = findVanguard();
     		
+    		/*
+    		if(canTakeBonus())
+    		{
+    			takeBonus();
+    		}
+    		*/
+    		
     		if(!amIFirst(vanguard))
     			walk();
     	}
@@ -485,7 +492,7 @@ public final class MyStrategy implements Strategy {
     	// lanes rune zone
     	runeZone.put(LaneType.MIDDLE, new Point2D(world.getWidth() / 2, world.getHeight() / 2));
     	runeZone.put(LaneType.TOP, new Point2D(LANE_WIDTH * 1.4, LANE_WIDTH * 1.4));
-    	runeZone.put(LaneType.TOP, new Point2D(world.getWidth() - LANE_WIDTH * 1.4, world.getHeight() - LANE_WIDTH * 1.4));
+    	runeZone.put(LaneType.BOTTOM, new Point2D(world.getWidth() - LANE_WIDTH * 1.4, world.getHeight() - LANE_WIDTH * 1.4));
     	
     	// run spots
     	runes.add(new Point2D(1200, 1200));
