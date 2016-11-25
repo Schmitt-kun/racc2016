@@ -1,5 +1,6 @@
 import model.*;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class MyStrategy implements Strategy {
 	 //private static final Double WAYPOINT_RADIUS = 10.0;
@@ -13,6 +14,8 @@ public final class MyStrategy implements Strategy {
     	STD, FWD, BWD, FULL_BWD, BONUS, BONUS_BACK;
     };
    
+    // Bonuses spots.
+    public enum Spot {TOP, BOT};
 
     /**
      * Ключевые точки для каждой линии, позволяющие упростить управление перемещением волшебника.
@@ -28,7 +31,8 @@ public final class MyStrategy implements Strategy {
     private WD myTactic;
     private Boolean iAmStuck = false;
     private Integer stopTick = 0;
-    private Integer stuckTick = 20_000;
+    
+    private Bonuses bonuses;
     
     
     private Random random = new Random();
@@ -44,14 +48,14 @@ public final class MyStrategy implements Strategy {
     
     private Double LANE_WIDTH;
     
-    private final Long TickLimit = 10l;
-    
     @Override
     public void move(Wizard self, World world, Game game, Move move)
     {
     	initializeTick(self, world, game, move);
     	initializeStrategy(self, game);
     	
+        bonuses.run(world);
+        
     	LivingUnit enemy = spotTarget();
     	
     	if(enemy != null)
@@ -277,7 +281,6 @@ public final class MyStrategy implements Strategy {
     			if(stopTick  + 3/*world.getTickCount() / 250*/ < world.getTickIndex())
     			{
     				iAmStuck = true;
-    				stuckTick = world.getTickIndex();
     			}
     		}
     		else{
@@ -494,6 +497,7 @@ public final class MyStrategy implements Strategy {
     	runeZone.put(LaneType.TOP, new Point2D(LANE_WIDTH * 1.4, LANE_WIDTH * 1.4));
     	runeZone.put(LaneType.BOTTOM, new Point2D(world.getWidth() - LANE_WIDTH * 1.4, world.getHeight() - LANE_WIDTH * 1.4));
     	
+        bonuses = new Bonuses();
     	// run spots
     	runes.add(new Point2D(1200, 1200));
     	runes.add(new Point2D(2800, 2800));
@@ -779,6 +783,92 @@ public final class MyStrategy implements Strategy {
     	return false;
     }
    
+    private final class Bonuses
+    {
+        private final Map<Spot,Point2D> bonuses = new EnumMap<>(Spot.class);
+        private final Map<Spot, AtomicBoolean> exist = new EnumMap<>(Spot.class);
+        private Boolean top, bottom;
+                
+        
+        public Bonuses()
+        {
+            bonuses.put(Spot.TOP, new Point2D(1200, 1200));
+            bonuses.put(Spot.BOT, new Point2D(2800, 2800));
+            
+            exist.put(Spot.TOP, new AtomicBoolean(false));
+            exist.put(Spot.BOT, new AtomicBoolean(false));
+            
+            top = false;
+            bottom = false;
+            
+            debug();
+            System.out.println("start");
+        }
+        
+        public void watch(World world)
+        {
+            System.out.println("test");
+            // bonuses spawn
+            int index= world.getTickIndex();
+            if((index % 2500) == 0)
+            {
+                if(index > 1)
+                {
+                    top = true;
+                    bottom = true;
+                }
+            }
+            
+            // bonusesa taken
+            Bonus[] b = world.getBonuses();
+            if(exist.get(Spot.TOP).get())
+            {
+                for(Wizard w : world.getWizards())
+                {
+                    if(w.getDistanceTo(bonuses.get(Spot.TOP).getX(), bonuses.get(Spot.TOP).getY()) < w.getVisionRange())
+                    {
+                        if(b.length > 0 && b[0].getX() == bonuses.get(Spot.TOP).getX())
+                        {}
+                        else if(b.length > 1 && b[1].getX() == bonuses.get(Spot.TOP).getX())
+                        {}
+                        else{
+                            exist.get(Spot.TOP).set(false);
+                        }    
+                        break;
+                    }
+                }
+            }
+            if(exist.get(Spot.BOT).get())
+            {
+                for(Wizard w : world.getWizards())
+                {
+                    if(w.getDistanceTo(bonuses.get(Spot.BOT).getX(), bonuses.get(Spot.BOT).getY()) < w.getVisionRange())
+                    {
+                        if(b.length > 0 && b[0].getX() == bonuses.get(Spot.BOT).getX())
+                        {}
+                        else if(b.length > 1 && b[1].getX() == bonuses.get(Spot.BOT).getX())
+                        {}
+                        else{
+                            exist.get(Spot.BOT).set(false);
+                        }    
+                        break;
+                    }
+                }
+            }
+        }
+        
+        public void debug()
+        {
+            if(world.getTickCount() % 50 == 0)
+            System.out.println("top: " + top/*exist.get(Spot.TOP).get()*/ + " bot: " + bottom/*exist.get(Spot.BOT).get()*/);
+        }
+        
+        public void run(World world)
+        {
+            watch(world);
+            debug();
+        }
+    }
 
     /**
      * Вспомогательный класс для хранения позиций на карте.
