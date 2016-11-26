@@ -11,7 +11,7 @@ public final class MyStrategy implements Strategy {
     // Wizzard direction.
     private enum WD
     {
-    	STD, FWD, BWD, FULL_BWD, BONUS, BONUS_BACK;
+    	STD, FWD, BWD, FULL_BWD, BONUS;
     };
    
     // Bonuses spots.
@@ -52,13 +52,20 @@ public final class MyStrategy implements Strategy {
     public void move(Wizard self, World world, Game game, Move move)
     {
     	initializeTick(self, world, game, move);
+    	
+    	if(!self.isMaster() && world.getTickIndex() < 40)
+    		return;
     	initializeStrategy(self, game);
     	
-        bonuses.run(world);
+        ;
         
     	LivingUnit enemy = spotTarget();
     	
-    	if(enemy != null)
+    	if(bonuses.run())
+    	{
+    		
+    	}
+    	else if(enemy != null)
     	{
     		fight(enemy);
     	}
@@ -75,32 +82,86 @@ public final class MyStrategy implements Strategy {
     		*/
     		
     		if(!amIFirst(vanguard))
+    		{
+    			myTactic = WD.FWD;
     			walk();
+    		}
     	}
     	
     	stuckCounter();
     	
     }
     
+    private double getSpeed()
+    {
+    	double speed = game.getWizardForwardSpeed();
+    	Status[] statuses = self.getStatuses();
+    	for(Status st : statuses)
+    		if(st.getType() == StatusType.HASTENED)
+    			speed = 1.5 * speed;
+    	return speed;
+    }
+    
+    private double getBackwardSpeed()
+    {
+    	double speed = game.getWizardBackwardSpeed();
+    	Status[] statuses = self.getStatuses();
+    	for(Status st : statuses)
+    		if(st.getType() == StatusType.HASTENED)
+    			speed = 1.5 * speed;
+    	return speed;
+    }
+    
     private void walk()
     {
-    	myTactic = WD.FWD;
-    	
     	Point2D walkTo = selectWaypont();
     	move.setTurn(self.getAngleTo(walkTo.getX(), walkTo.getY()));
     	if(self.getDistanceTo(walkTo.getX(), walkTo.getY()) < self.getRadius() * 3)
     		return;
     	if(self.getAngleTo(walkTo.getX(), walkTo.getY()) < Math.PI / 6)
     	{
-    		move.setSpeed(game.getWizardForwardSpeed());
+    		move.setSpeed(getSpeed());
     		moving = true;
     	}
-    	
     	collision();
     }
     
     private void collision()
     {
+    	Tree tree = forwardTrees();
+    	if(tree != null)
+    	{
+    		move.setCastAngle(self.getAngleTo(tree));
+    		move.setAction(ActionType.MAGIC_MISSILE);
+    	}
+    	
+    	List<Tree> collTrees = forwardTrees2Close();
+    	if(!collTrees.isEmpty() && collTrees.size() > 1)
+    	{
+    		if(collTrees.size() == 1)
+    		{
+    			move.setAction(ActionType.MAGIC_MISSILE);
+    			if(self.getAngleTo((Tree)collTrees.get(0)) > 0)
+    				move.setStrafeSpeed(-game.getWizardStrafeSpeed());
+    			else if(self.getAngleTo((Tree)collTrees.get(0)) < 0)
+    				move.setStrafeSpeed(game.getWizardStrafeSpeed());
+    		}
+    		else {
+    			Tree cur = null;
+    			for(Tree t : collTrees) {
+    				if(cur == null)
+    					cur = t;
+    				else
+    					if(Math.abs(self.getAngleTo(t)) < Math.abs(self.getAngleTo(cur)))
+    						cur = t;
+    			}
+    			
+    			move.setTurn(self.getAngleTo(cur));
+    			if(Math.abs(self.getAngleTo(cur)) < game.getStaffSector() / 2)
+    				move.setAction(ActionType.MAGIC_MISSILE);
+    		}
+    		return;
+    	}
     	List<Unit> u = collisionDetector();
     	if(u != null && !u.isEmpty())
     	{
@@ -129,19 +190,42 @@ public final class MyStrategy implements Strategy {
     				res -= Math.PI;
     			else
     				res += Math.PI;
-    			Double vel = game.getWizardBackwardSpeed();
+    			Double vel = getBackwardSpeed();
     			move.setSpeed(vel * Math.cos(res));
     			move.setStrafeSpeed(vel * Math.sin(res));
     		}
+    		return;
     	}
+    	
+    }
+    
+    private List<Unit> getAllUnits()
+    {
+    	List<Unit> list =  new ArrayList<>();
+    	for(Building b : world.getBuildings())
+    		list.add(b);
+    	for(Wizard w : world.getWizards())
+    		list.add(w);
+    	for(Minion m : world.getMinions())
+    		list.add(m);
+    	for(Tree t : world.getTrees())
+    		list.add(t);
+    	return list;
     }
     
     private Point2D selectWaypont()
     {
+    	
+    	if(true)
+    		return new Point2D(1200,1200);
+    		
     	switch(lane){
     	case MIDDLE:
     		//System.out.println("mid");
-    		return waypointsByLane.get(LaneType.MIDDLE)[0];
+    		if(self.getX() - LANE_WIDTH / 2 < self.getY())
+    			return waypointsByLane.get(LaneType.MIDDLE)[0];
+    		else 
+    			return waypointsByLane.get(LaneType.MIDDLE)[1];
     	case TOP:
     		//System.out.print("top ");
     		if(self.getY() > LANE_WIDTH)
@@ -181,6 +265,17 @@ public final class MyStrategy implements Strategy {
     
     private void chooseLane()
     {
+    	Message[] ms = self.getMessages();
+    	LaneType l1 = null;
+    	for(Message m : ms)
+    	{
+    		l1 = m.getLane();
+    	}
+    	if(l1 != null)
+    	{
+    		lane = l1;
+    		return;
+    	}
     	switch((int) self.getId())
     	{
     	case 1:
@@ -222,6 +317,26 @@ public final class MyStrategy implements Strategy {
 	    				self.getDistanceTo(b) < self.getRadius() + b.getRadius() + COLLISION_RADIUS)
 	    		{
     				result.add(b);
+	    		}
+    		}
+    	}
+    	
+    	for(Tree t : world.getTrees())
+    	{	
+    		if(myTactic == WD.FWD)
+    		{
+	    		if(Math.abs(self.getAngleTo(t)) < Math.PI / 2 &&
+	    				self.getDistanceTo(t) < self.getRadius() + t.getRadius() + COLLISION_RADIUS)
+	    		{
+	    			result.add(t);
+	    		}
+    		}
+    		else
+    		{
+    			if(Math.abs(self.getAngleTo(t)) > Math.PI / 2 &&
+	    				self.getDistanceTo(t) < self.getRadius() + t.getRadius() + COLLISION_RADIUS)
+	    		{
+    				result.add(t);
 	    		}
     		}
     	}
@@ -291,29 +406,71 @@ public final class MyStrategy implements Strategy {
     		stopTick = world.getTickIndex();
     }
     
-    private Tree treeCollisionDetector()
+    private List<Tree> treeCollisionDetector()
     {
+    	List<Tree> list = new ArrayList<>(); 
     	for(Tree t : world.getTrees())
     	{
-    		if(myTactic == WD.FWD)
+    		
+    		if(Math.abs(self.getAngleTo(t)) < Math.PI / 2 &&
+    				self.getDistanceTo(t) < self.getRadius() + t.getRadius() + COLLISION_RADIUS)
     		{
-	    		if(Math.abs(self.getAngleTo(t)) < Math.PI / 2 &&
-	    				self.getDistanceTo(t) < self.getRadius() + t.getRadius() + COLLISION_RADIUS)
-	    		{
-	    			return t;
-	    		}
+    			list.add(t);
     		}
-    		else
-    		{
-    			if(Math.abs(self.getAngleTo(t)) > Math.PI / 2 &&
-	    				self.getDistanceTo(t) < self.getRadius() + t.getRadius() + COLLISION_RADIUS)
-	    		{
-	    			return t;
-	    		}
+    		
+    	}
+    	
+    	return list;
+    }
+    
+    private Tree forwardTrees()
+    {
+    	Tree res = null; 
+    	for(Tree t : world.getTrees())
+    	{
+    		//if(self.getDistanceTo(t) < game.getWizardCastRange()){
+    		if(Math.abs(self.getAngleTo(t)) < Math.PI / 2 &&
+    				self.getDistanceTo(t) < self.getRadius() + t.getRadius() + COLLISION_RADIUS)
+			{
+				if(res == null)
+					res = t;
+				else if(self.getDistanceTo(t) < self.getDistanceTo(res))
+					res = t;
+			}
+    		
+    	}
+    	
+    	return res;
+    }
+    
+    private List<Tree> forwardTrees2Close()
+    {
+    	List<Tree> res = new ArrayList<Tree>(); 
+    	for(Tree t : world.getTrees())
+    	{
+    		if(self.getDistanceTo(t) < self.getRadius() + t.getRadius() + self.getRadius() / 4){
+    			{
+    				res.add(t);
+    			}
     		}
     	}
     	
-    	return null;
+    	return res;
+    }
+    
+    private Unit forwardEnemy()
+    {
+    	Unit u = null;
+    	for(Wizard w : world.getWizards())
+    	{
+    		if(self.getDistanceTo(w) < game.getWizardCastRange() && Math.abs(self.getAngleTo(w)) < game.getStaffSector() / 2)
+    			if(u == null)
+    				u = w;
+    			else if(self.getDistanceTo(u) > self.getDistanceTo(w))
+    				u = w;
+    	}
+    	
+    	return u;
     }
     
     
@@ -354,7 +511,7 @@ public final class MyStrategy implements Strategy {
     {
     	Double diff = 0.0;
     	Double angle = 0.0;
-    	Double speed = game.getWizardBackwardSpeed();
+    	Double speed = getBackwardSpeed();
     	switch(lane)
     	{
     	case MIDDLE:
@@ -434,7 +591,6 @@ public final class MyStrategy implements Strategy {
 					move.setStrafeSpeed(speed * revert / 1.4);
 				}
 			}
-			
 		}
     }
    
@@ -462,7 +618,7 @@ public final class MyStrategy implements Strategy {
     	
     	Point2D[] waypointsM;
     	
-    	waypointsM = new Point2D[1];
+    	waypointsM = new Point2D[2];
     	for(Building building : buildings)
     	{
     		if(building.getType() == BuildingType.FACTION_BASE)
@@ -476,8 +632,8 @@ public final class MyStrategy implements Strategy {
     	}
     	
     	// lanes waypoints
-    	
-    	waypointsM[0] = new Point2D(world.getWidth() - LANE_WIDTH * 2.5, LANE_WIDTH * 2.5);
+    	waypointsM[0] = new Point2D(world.getWidth() / 2 + LANE_WIDTH / 3, world.getHeight() / 2 - LANE_WIDTH / 3);
+    	waypointsM[1] = new Point2D(world.getWidth() - LANE_WIDTH * 2.5, LANE_WIDTH * 2.5);
     	waypointsByLane.put(LaneType.MIDDLE,waypointsM);
     	
 		Point2D[] waypointsT = new Point2D[3];
@@ -655,140 +811,13 @@ public final class MyStrategy implements Strategy {
     //		Bonus section
     //*******************************************************************************************************************
     
-    private void takeBonus()
-    {
-    	Point2D bonus = getBonusPos();
-    	if(isBonusHere())
-    	{ // walk to bonus
-    		myTactic = WD.BONUS;
-    		move.setTurn(self.getAngleTo(bonus.getX(), bonus.getY()));
-    		move.setSpeed(game.getWizardForwardSpeed());
-    	}
-    	/*
-    	else
-    	{
-    		if(self.getDistanceTo(runeZone.get(lane).getX(), runeZone.get(lane).getY()) >  LANE_WIDTH);
-    	}
-    	*/
-    	
-    }
     
-    private Boolean canTakeBonus()
-    {
-    	if(myTactic != WD.FWD && myTactic != WD.BONUS)
-    		return false;
-    		
-    	if(isBonusSeen() && canITakeBonuz() && canIHazBonus())
-    		return true;
-    	
-    	if(isItBonusTime() && isItBonusZone() && canIHazBonus() && canITakeBonuz())
-    		return true;
-    	return false;
-    }
-    
-    private Integer getNextBonusSpawn()
-    {
-    	Integer tick = game.getTickCount();
-    	return (tick / 2500) + 2500;
-    }
-    
-    private Point2D getBonusPos()
-    {
-    	if(self.getX() + self.getY() < world.getWidth())
-    		return runes.get(0);
-    	return runes.get(1);
-    }
-    
-    private Boolean isItBonusTime()
-    {
-    	Point2D bonus = getBonusPos();
-    	if(self.getDistanceTo(bonus.getX(), bonus.getY()) / game.getWizardForwardSpeed() < getNextBonusSpawn() + 100)
-    		return true;
-    	return false;	
-    }
-    
-    private Boolean isItBonusZone()
-    {
-    	Point2D myZone = runeZone.get(lane);
-    	if(self.getDistanceTo(myZone.getX(), myZone.getY()) < 2 * game.getWizardCastRange())
-    			return true;
-    	return false;
-    }
-    
-    /**
-     * Проверяет что наша линия достаточно отпушена чтобы взять бонус.
-     * @return
-     */
-    private Boolean canIHazBonus()
-    {
-    	for(Minion m : world.getMinions())
-    	{
-    		if(m.getFaction() == self.getFaction())
-    		{
-    			if(self.getDistanceTo(m) < self.getVisionRange())
-    			{
-    				if(m.getX() > m.getY())
-    					return true;
-    			}
-    		}
-    	}
-    	return false;
-    }
-    
-    /**
-     * Проверяет являемся ли мы ближайшим к бонусу волшебником.
-     * @return
-     */
-    private Boolean canITakeBonuz()
-    {
-    	Point2D bonus = getBonusPos();
-    	Double myDistance = self.getDistanceTo(bonus.getX(), bonus.getY());
-    	for(Wizard w : world.getWizards())
-    	{
-    		if(!w.isMe())
-    			if(Math.abs(w.getAngleTo(bonus.getX(), bonus.getY())) < Math.PI / 8)
-    				if(w.getDistanceTo(bonus.getX(), bonus.getY()) < myDistance)
-    					return false;
-    	}
-    	return true;
-    }
-    
-    private Boolean isBonusHere()
-    {
-    	Point2D bonus = getBonusPos();
-    	if(self.getDistanceTo(bonus.getX(),  bonus.getY()) < self.getVisionRange())
-    	{
-    		for(Bonus b : world.getBonuses())
-    		{
-    			if(b.getX() == bonus.getX() && b.getY() == bonus.getY())
-    				return true;
-    		}
-    		return false;
-    	}
-    	return true;
-    }
-    
-    private Boolean isBonusSeen()
-    {
-    	Point2D bonus = getBonusPos();
-    	if(self.getDistanceTo(bonus.getX(),  bonus.getY()) < self.getVisionRange())
-    	{
-    		for(Bonus b : world.getBonuses())
-    		{
-    			if(b.getX() == bonus.getX() && b.getY() == bonus.getY())
-    				return true;
-    		}
-    		return false;
-    	}
-    	return false;
-    }
    
     private final class Bonuses
     {
         private final Map<Spot,Point2D> bonuses = new EnumMap<>(Spot.class);
         private final Map<Spot, AtomicBoolean> exist = new EnumMap<>(Spot.class);
-        private Boolean top, bottom;
-                
+        boolean taking;
         
         public Bonuses()
         {
@@ -797,25 +826,22 @@ public final class MyStrategy implements Strategy {
             
             exist.put(Spot.TOP, new AtomicBoolean(false));
             exist.put(Spot.BOT, new AtomicBoolean(false));
-            
-            top = false;
-            bottom = false;
-            
+        
             debug();
-            System.out.println("start");
+            //System.out.println("start");
         }
         
-        public void watch(World world)
+        public void watch()
         {
-            System.out.println("test");
-            // bonuses spawn
+            //System.out.println("test");
             int index= world.getTickIndex();
-            if((index % 2500) == 0)
+            if((index % 2500) == 1)
             {
                 if(index > 1)
                 {
-                    top = true;
-                    bottom = true;
+                	exist.get(Spot.TOP).set(true);
+                	exist.get(Spot.BOT).set(true);
+                	//System.out.println("sbonuses set");
                 }
             }
             
@@ -857,18 +883,179 @@ public final class MyStrategy implements Strategy {
             }
         }
         
-        public void debug()
+        private Boolean isItBonusZone()
         {
-            if(world.getTickCount() % 50 == 0)
-            System.out.println("top: " + top/*exist.get(Spot.TOP).get()*/ + " bot: " + bottom/*exist.get(Spot.BOT).get()*/);
+        	Point2D myZone = runeZone.get(lane);
+        	if(self.getDistanceTo(myZone.getX(), myZone.getY()) < 2 * game.getWizardCastRange())
+        			return true;
+        	return false;
         }
         
-        public void run(World world)
+        private Boolean isPushed()
         {
-            watch(world);
-            debug();
+        	return self.getX() > self.getY();
+        }
+        
+        private Boolean nearBonus()
+        {
+        	if(self.getDistanceTo(bonuses.get(Spot.TOP).getX(),bonuses.get(Spot.TOP).getY()) < self.getVisionRange() * 0.7)
+        		return true;
+        	
+        	if(self.getDistanceTo(bonuses.get(Spot.BOT).getX(),bonuses.get(Spot.BOT).getY()) < self.getVisionRange() * 0.7)
+        		return true;
+        	return false;
+        }
+        
+        private Spot canIHazBonus()
+        {
+        	if((!isPushed() || !isItBonusZone()) && !nearBonus())
+        		return null;
+        	
+        	switch(lane)
+        	{
+        	case TOP:
+        		if(exist.get(Spot.TOP).get() && canIHazThatBonus(Spot.TOP))
+        		{
+        			//System.out.println("taking top!");
+        			taking = true;
+        			takeBonus(Spot.TOP);
+        		}
+        		break;
+        	case BOTTOM:
+        		if(exist.get(Spot.BOT).get() && canIHazThatBonus(Spot.BOT))
+        		{
+        			//System.out.println("taking bot!");
+        			taking = true;
+        			takeBonus(Spot.BOT);
+        		}
+        		break;
+        	default:
+        		boolean top = false, bot = false;
+        		if(exist.get(Spot.TOP).get() && canIHazThatBonus(Spot.TOP))
+        		{
+        			//System.out.println("taking top!");
+        			taking = true;
+        			top  = true;
+        		}
+        		else if(exist.get(Spot.BOT).get() && canIHazThatBonus(Spot.BOT))
+        		{
+        			//System.out.println("taking bot!");
+        			taking = true;
+        			bot = true;
+        		}
+        		if(bot == true && top == true)
+        		{
+        			if(self.getDistanceTo(bonuses.get(Spot.TOP).getX(), bonuses.get(Spot.TOP).getY()) < 
+        					self.getDistanceTo(bonuses.get(Spot.BOT).getX(), bonuses.get(Spot.BOT).getY())) {
+        				takeBonus(Spot.TOP);
+        			}
+        			else {
+        				takeBonus(Spot.BOT);
+        			}
+        		}
+        		else if(top){
+        			takeBonus(Spot.TOP);
+        		}
+        		else if(bot){
+        			takeBonus(Spot.BOT);
+        		}
+        	}
+        	return null;
+        }
+        
+        private Boolean canIHazThatBonus(Spot spot)
+        {
+        	Point2D b = bonuses.get(spot);
+    		for(Wizard w : world.getWizards())
+    		{
+    			if(!w.isMe())
+    			{
+    				if(w.getDistanceTo(b.getY(),b.getY()) < w.getVisionRange())
+    				{
+    					if(Math.abs(w.getAngleTo(b.getY(),b.getY())) <  game.getStaffSector())
+    					{
+    						if(w.getDistanceTo(b.getY(),b.getY()) < self.getDistanceTo(b.getY(),b.getY()))
+    						{
+    							return false;
+    						}
+    					}
+    				}
+    			}
+    		}
+        	return true;
+        }
+        
+        private void takeBonus(Spot spot)
+        {
+        	List<Tree> collTrees = forwardTrees2Close();
+        	if(!collTrees.isEmpty() && collTrees.size() > 1)
+        	{
+        		if(collTrees.size() == 1)
+        		{
+        			move.setAction(ActionType.MAGIC_MISSILE);
+        			if(self.getAngleTo((Tree)collTrees.get(0)) > 0)
+        				move.setStrafeSpeed(-game.getWizardStrafeSpeed());
+        			else if(self.getAngleTo((Tree)collTrees.get(0)) < 0)
+        				move.setStrafeSpeed(game.getWizardStrafeSpeed());
+        		}
+        		else {
+        			Tree cur = null;
+        			for(Tree t : collTrees) {
+        				if(cur == null)
+        					cur = t;
+        				else
+        					if(Math.abs(self.getAngleTo(t)) < Math.abs(self.getAngleTo(cur)))
+        						cur = t;
+        			}
+        			
+        			move.setTurn(self.getAngleTo(cur));
+        			if(Math.abs(self.getAngleTo(cur)) < game.getStaffSector() / 2)
+        				move.setAction(ActionType.MAGIC_MISSILE);
+        		}
+        		return;
+        	}
+        	
+        	Tree forwTree = forwardTrees();
+        	if(forwTree != null) {
+        	
+        		move.setCastAngle(self.getAngleTo(forwTree));
+        		move.setAction(ActionType.MAGIC_MISSILE);
+        	}
+        	
+        	Unit enemy = forwardEnemy();
+        	if(enemy != null)
+        	{
+        		move.setCastAngle(self.getAngleTo(enemy));
+        		move.setAction(ActionType.FIREBALL);
+        	}
+        	
+        	double a = self.getAngleTo(bonuses.get(spot).getX(), bonuses.get(spot).getY());
+        	move.setTurn(a);
+        	if(Math.abs(a) < game.getStaffSector() /2)
+        	{
+        		move.setSpeed(getSpeed());
+        	}
+        }
+        
+        
+        
+        public void debug()
+        {
+            //if(world.getTickCount() % 50 == 0)
+            //System.out.println("top: " + exist.get(Spot.TOP).get() + " bot: " + exist.get(Spot.BOT).get());
+        }
+        
+        public boolean run()
+        {
+        	taking = false;
+            watch();
+            canIHazBonus();
+            //debug();
+            return taking;
         }
     }
+    
+    
 
     /**
      * Вспомогательный класс для хранения позиций на карте.
