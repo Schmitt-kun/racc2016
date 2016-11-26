@@ -215,10 +215,10 @@ public final class MyStrategy implements Strategy {
     
     private Point2D selectWaypont()
     {
-    	
+    	/*
     	if(true)
     		return new Point2D(1200,1200);
-    		
+    		*/
     	switch(lane){
     	case MIDDLE:
     		//System.out.println("mid");
