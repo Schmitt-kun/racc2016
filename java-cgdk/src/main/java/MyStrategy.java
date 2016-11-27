@@ -1035,6 +1035,8 @@ public final class MyStrategy implements Strategy {
         	{
         		move.setSpeed(getSpeed());
         	}
+        	
+        	collision();
         }
         
         
