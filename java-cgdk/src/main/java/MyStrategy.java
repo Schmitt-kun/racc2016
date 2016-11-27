@@ -57,7 +57,7 @@ public final class MyStrategy implements Strategy {
     		return;
     	initializeStrategy(self, game);
     	
-        ;
+    	learnSkill();
         
     	LivingUnit enemy = spotTarget();
     	
@@ -92,24 +92,163 @@ public final class MyStrategy implements Strategy {
     	
     }
     
+    private void learnSkill()
+    {
+    	if(!game.isSkillsEnabled())
+    		return;
+    	
+    	int level = self.getLevel();
+    	int skills = self.getSkills().length;
+    	
+    	if(level > skills)
+    	{
+    		switch(skills)
+    		{
+    			case 0:
+    				move.setSkillToLearn(SkillType.MAGICAL_DAMAGE_BONUS_PASSIVE_1);
+    				//System.out.println("MAGICAL_DAMAGE_BONUS_PASSIVE_1");
+    				return;
+    			case 1:
+    				move.setSkillToLearn(SkillType.MAGICAL_DAMAGE_BONUS_AURA_1);
+    				//System.out.println("MAGICAL_DAMAGE_BONUS_AURA_1");
+    				return;
+    			case 2:
+    				move.setSkillToLearn(SkillType.MAGICAL_DAMAGE_ABSORPTION_PASSIVE_1);
+    				//System.out.println("MAGICAL_DAMAGE_ABSORPTION_PASSIVE_1");
+    				return;
+    			case 3:
+    				move.setSkillToLearn(SkillType.MAGICAL_DAMAGE_ABSORPTION_AURA_1);
+    				//System.out.println("MAGICAL_DAMAGE_ABSORPTION_AURA_1");
+    				return;
+    			case 4:
+    				move.setSkillToLearn(SkillType.MAGICAL_DAMAGE_BONUS_PASSIVE_2);
+    				//System.out.println("MAGICAL_DAMAGE_BONUS_PASSIVE_2");
+    				return;
+    			case 5:
+    				move.setSkillToLearn(SkillType.MAGICAL_DAMAGE_BONUS_AURA_2);
+    				//System.out.println("MAGICAL_DAMAGE_BONUS_AURA_2");
+    				return;
+    			case 6:
+    				move.setSkillToLearn(SkillType.MAGICAL_DAMAGE_ABSORPTION_PASSIVE_2);
+    				//System.out.println("MAGICAL_DAMAGE_ABSORPTION_PASSIVE_2");
+    				return;
+    			case 7:
+    				move.setSkillToLearn(SkillType.MAGICAL_DAMAGE_ABSORPTION_AURA_2);
+    				//System.out.println("MAGICAL_DAMAGE_ABSORPTION_AURA_2");
+    				return;
+    			case 8:
+    				move.setSkillToLearn(SkillType.RANGE_BONUS_PASSIVE_1);
+    				//System.out.println("RANGE_BONUS_PASSIVE_1");
+    				return;
+    			case 9:
+    				move.setSkillToLearn(SkillType.RANGE_BONUS_AURA_1);
+    				//System.out.println("RANGE_BONUS_AURA_1");
+    				return;
+    			case 10:
+    				move.setSkillToLearn(SkillType.MOVEMENT_BONUS_FACTOR_PASSIVE_1);
+    				//System.out.println("MOVEMENT_BONUS_FACTOR_PASSIVE_1");
+    				return;
+    			case 11:
+    				move.setSkillToLearn(SkillType.MOVEMENT_BONUS_FACTOR_AURA_1);
+    				//System.out.println("MOVEMENT_BONUS_FACTOR_AURA_1");
+    				return;
+    			case 12:
+    				move.setSkillToLearn(SkillType.RANGE_BONUS_PASSIVE_2);
+    				//System.out.println("RANGE_BONUS_PASSIVE_2");
+    				return;
+    			case 13:
+    				move.setSkillToLearn(SkillType.RANGE_BONUS_AURA_2);
+    				//System.out.println("SkillType.RANGE_BONUS_AURA_2");
+    				return;
+    			case 14:
+    				move.setSkillToLearn(SkillType.ADVANCED_MAGIC_MISSILE);
+    				//System.out.println("ADVANCED_MAGIC_MISSILE");
+    				return;
+    			case 15:
+    				move.setSkillToLearn(SkillType.MOVEMENT_BONUS_FACTOR_PASSIVE_2);
+    				//System.out.println("MOVEMENT_BONUS_FACTOR_PASSIVE_2");
+    				return;
+    			case 16:
+    				move.setSkillToLearn(SkillType.MOVEMENT_BONUS_FACTOR_AURA_2);
+    				//System.out.println("MOVEMENT_BONUS_FACTOR_AURA_2");
+    				return;
+    			case 17:
+    				move.setSkillToLearn(SkillType.STAFF_DAMAGE_BONUS_PASSIVE_1);
+    				//System.out.println("STAFF_DAMAGE_BONUS_PASSIVE_1");
+    				return;
+    			case 18:
+    				move.setSkillToLearn(SkillType.STAFF_DAMAGE_BONUS_AURA_1);
+    				//System.out.println("STAFF_DAMAGE_BONUS_AURA_1");
+    				return;
+    			case 19:
+    				move.setSkillToLearn(SkillType.STAFF_DAMAGE_BONUS_PASSIVE_2);
+    				//System.out.println("STAFF_DAMAGE_BONUS_PASSIVE_2");
+    				return;
+    		}
+    	}
+    }
+    
+    private int speedSkills()
+    {
+    	int res = 0;
+    	SkillType[] sts = self.getSkills();
+    	for(SkillType st : sts)
+    	{
+    		if(st == SkillType.MOVEMENT_BONUS_FACTOR_PASSIVE_1)
+    			res++;
+    		if(st == SkillType.MOVEMENT_BONUS_FACTOR_PASSIVE_2)
+    			res++;
+    		if(st == SkillType.MOVEMENT_BONUS_FACTOR_AURA_1)
+    			res++;
+    		if(st == SkillType.MOVEMENT_BONUS_FACTOR_AURA_2)
+    			res++;
+    	}
+    	return res;
+    }
+    
     private double getSpeed()
     {
     	double speed = game.getWizardForwardSpeed();
+    	double speedRes = speed;
     	Status[] statuses = self.getStatuses();
     	for(Status st : statuses)
     		if(st.getType() == StatusType.HASTENED)
-    			speed = 1.5 * speed;
-    	return speed;
+    			speedRes += 0.5 * speed;
+    	
+    	speedRes += speed * speedSkills() * game.getMovementBonusFactorPerSkillLevel();
+    	
+    	return speedRes;
     }
     
     private double getBackwardSpeed()
     {
     	double speed = game.getWizardBackwardSpeed();
+    	double speedRes = speed;
     	Status[] statuses = self.getStatuses();
     	for(Status st : statuses)
     		if(st.getType() == StatusType.HASTENED)
-    			speed = 1.5 * speed;
-    	return speed;
+    			speedRes += 0.5 * speed;
+    	
+    	speedRes += speed * speedSkills() * game.getMovementBonusFactorPerSkillLevel();
+    	return speedRes;
+    }
+    
+    private double getAttackRange()
+    {
+    	double range = game.getWizardCastRange();
+    	SkillType[] sts = self.getSkills();
+    	for(SkillType st : sts)
+    	{
+    		if(st == SkillType.RANGE_BONUS_PASSIVE_1)
+    			range += game.getRangeBonusPerSkillLevel();
+    		if(st == SkillType.RANGE_BONUS_PASSIVE_2)
+    			range += game.getRangeBonusPerSkillLevel();
+    		if(st == SkillType.RANGE_BONUS_AURA_1)
+    			range += game.getRangeBonusPerSkillLevel();
+    		if(st == SkillType.RANGE_BONUS_AURA_2)
+    			range += game.getRangeBonusPerSkillLevel();
+    	}
+    	return range;
     }
     
     private void walk()
@@ -463,7 +602,7 @@ public final class MyStrategy implements Strategy {
     	Unit u = null;
     	for(Wizard w : world.getWizards())
     	{
-    		if(self.getDistanceTo(w) < game.getWizardCastRange() && Math.abs(self.getAngleTo(w)) < game.getStaffSector() / 2)
+    		if(self.getDistanceTo(w) < getAttackRange() && Math.abs(self.getAngleTo(w)) < game.getStaffSector() / 2)
     			if(u == null)
     				u = w;
     			else if(self.getDistanceTo(u) > self.getDistanceTo(w))
@@ -478,7 +617,7 @@ public final class MyStrategy implements Strategy {
     {
     	move.setTurn(self.getAngleTo(target));
     	
-    	if(Math.abs(self.getAngleTo(target)) < game.getWizardCastRange())
+    	if(Math.abs(self.getAngleTo(target)) < getAttackRange())
     	{
     		move.setCastAngle(self.getAngleTo(target));
     		if(Math.abs(self.getAngleTo(target)) < game.getStaffSector() / 2.0)
@@ -717,7 +856,7 @@ public final class MyStrategy implements Strategy {
         }
 
         
-        if(nearestTarget != null && self.getDistanceTo(nearestTarget) < game.getWizardCastRange())
+        if(nearestTarget != null && self.getDistanceTo(nearestTarget) < getAttackRange())
         	return nearestTarget;
         
         return null;
