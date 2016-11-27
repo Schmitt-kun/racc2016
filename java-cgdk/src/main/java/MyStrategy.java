@@ -503,8 +503,42 @@ public final class MyStrategy implements Strategy {
     	}
     	else
     	{
+    		strafe();
     		myTactic = WD.STD;
     	}
+    }
+    
+    private void strafe()
+    {
+    	Double diff = 0.0;
+    	Double angle = 0.0;
+    	Double speed = getBackwardSpeed();
+    	switch(lane)
+    	{
+    	case MIDDLE:
+    		if(self.getX() + self.getY() < world.getWidth() - LANE_WIDTH)
+    		{
+    			move.setStrafeSpeed(getBackwardSpeed());
+    		}
+    		else if(self.getX() + self.getY() > world.getWidth() + LANE_WIDTH)
+    		{
+    			move.setStrafeSpeed(-getBackwardSpeed());
+    		}
+    		break;
+    	case TOP:
+    		if(self.getX() > LANE_WIDTH && self.getY() > LANE_WIDTH)
+    		{	// before turn
+    			move.setStrafeSpeed(-getBackwardSpeed());
+    		}
+    		break;
+    	case BOTTOM:
+    		if(self.getX() < world.getWidth() - LANE_WIDTH && self.getY() < world.getHeight() - LANE_WIDTH)
+    		{	// before turnn
+    			move.setStrafeSpeed(getBackwardSpeed());
+    		}
+    	}
+    	
+		//move.setSpeed(-);
     }
     
     private void retreat()
