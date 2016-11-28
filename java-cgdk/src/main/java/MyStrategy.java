@@ -528,7 +528,7 @@ public final class MyStrategy implements Strategy {
     private void stuckCounter()
     {
      	iAmStuck = false;
-    	if(myTactic == WD.FWD)
+    	if(myTactic == WD.FWD || myTactic == WD.BONUS)
     	{
     		if(Math.abs(self.getSpeedX()) + Math.abs(self.getSpeedY()) < 1.0)
     		{
@@ -1210,6 +1210,7 @@ public final class MyStrategy implements Strategy {
         	}
         	
         	collision();
+        	stuckCounter();
         }
         
         
