@@ -4,7 +4,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class MyStrategy implements Strategy {
 	 //private static final Double WAYPOINT_RADIUS = 10.0;
-	 private static final Double COLLISION_RADIUS = 4.0;
+	 private static final Double COLLISION_RADIUS = 8.0;
 
     private static final double LOW_HP_FACTOR = 0.25D;
     
@@ -61,7 +61,7 @@ public final class MyStrategy implements Strategy {
         
     	LivingUnit enemy = spotTarget();
     	
-    	if(bonuses.run())
+    	if(!enemyIsNear() && bonuses.run())
     	{
     		
     	}
@@ -275,7 +275,7 @@ public final class MyStrategy implements Strategy {
     	}
     	
     	List<Tree> collTrees = forwardTrees2Close();
-    	if(!collTrees.isEmpty() && collTrees.size() > 1)
+    	if(!collTrees.isEmpty() && collTrees.size() > 0)
     	{
     		if(collTrees.size() == 1)
     		{
@@ -442,7 +442,7 @@ public final class MyStrategy implements Strategy {
     	
     	for(Building b : world.getBuildings())
     	{	
-    		if(myTactic == WD.FWD)
+    		if(myTactic == WD.FWD || myTactic == WD.BONUS)
     		{
 	    		if(Math.abs(self.getAngleTo(b)) < Math.PI / 2 &&
 	    				self.getDistanceTo(b) < self.getRadius() + b.getRadius() + COLLISION_RADIUS)
@@ -462,7 +462,7 @@ public final class MyStrategy implements Strategy {
     	
     	for(Tree t : world.getTrees())
     	{	
-    		if(myTactic == WD.FWD)
+    		if(myTactic == WD.FWD || myTactic == WD.BONUS)
     		{
 	    		if(Math.abs(self.getAngleTo(t)) < Math.PI / 2 &&
 	    				self.getDistanceTo(t) < self.getRadius() + t.getRadius() + COLLISION_RADIUS)
@@ -482,7 +482,7 @@ public final class MyStrategy implements Strategy {
     	
     	for(Minion u : world.getMinions())
     	{	
-    		if(myTactic == WD.FWD)
+    		if(myTactic == WD.FWD || myTactic == WD.BONUS)
     		{
 	    		if(Math.abs(self.getAngleTo(u)) < Math.PI / 2 &&
 	    				self.getDistanceTo(u) < self.getRadius() + u.getRadius() + COLLISION_RADIUS)
@@ -805,7 +805,7 @@ public final class MyStrategy implements Strategy {
     	}
     	
     	// lanes waypoints
-    	waypointsM[0] = new Point2D(world.getWidth() / 2 + LANE_WIDTH / 3, world.getHeight() / 2 - LANE_WIDTH / 3);
+    	waypointsM[0] = new Point2D(world.getWidth() / 2 + LANE_WIDTH / 2, world.getHeight() / 2 - LANE_WIDTH / 2);
     	waypointsM[1] = new Point2D(world.getWidth() - LANE_WIDTH * 2.5, LANE_WIDTH * 2.5);
     	waypointsByLane.put(LaneType.MIDDLE,waypointsM);
     	
@@ -838,15 +838,16 @@ public final class MyStrategy implements Strategy {
         targets.addAll(Arrays.asList(world.getBuildings()));
         targets.addAll(Arrays.asList(world.getWizards()));
         targets.addAll(Arrays.asList(world.getMinions()));
+        
 
         LivingUnit nearestTarget = null;
         double nearestTargetDistance = Double.MAX_VALUE;
 
         for (LivingUnit target : targets) {
-            if (target.getFaction() == Faction.NEUTRAL || target.getFaction() == self.getFaction()) {
+            if ((target.getFaction() == Faction.NEUTRAL && target.getLife() == target.getMaxLife()) || target.getFaction() == self.getFaction()) {
                 continue;
             }
-
+            
             double distance = self.getDistanceTo(target);
 
             if (distance < nearestTargetDistance) {
@@ -860,6 +861,30 @@ public final class MyStrategy implements Strategy {
         	return nearestTarget;
         
         return null;
+    }
+    
+    private boolean enemyIsNear()
+    {
+    	List<LivingUnit> targets = new ArrayList<>();
+        targets.addAll(Arrays.asList(world.getBuildings()));
+        targets.addAll(Arrays.asList(world.getWizards()));
+        targets.addAll(Arrays.asList(world.getMinions()));
+        
+
+        LivingUnit nearestTarget = null;
+        double nearestTargetDistance = Double.MAX_VALUE;
+
+        for (LivingUnit target : targets) {
+            if ((target.getFaction() == Faction.NEUTRAL && target.getLife() == target.getMaxLife()) || target.getFaction() == self.getFaction()) {
+                continue;
+            }
+            
+            double distance = self.getDistanceTo(target);
+            if(distance < self.getCastRange() / 2) {
+            	return true;
+            }
+        }
+        return false;
     }
     
     
@@ -1110,7 +1135,7 @@ public final class MyStrategy implements Strategy {
         			taking = true;
         			top  = true;
         		}
-        		else if(exist.get(Spot.BOT).get() && canIHazThatBonus(Spot.BOT))
+        		if(exist.get(Spot.BOT).get() && canIHazThatBonus(Spot.BOT))
         		{
         			//System.out.println("taking bot!");
         			taking = true;
@@ -1160,6 +1185,7 @@ public final class MyStrategy implements Strategy {
         
         private void takeBonus(Spot spot)
         {
+        	myTactic= WD.BONUS;
         	List<Tree> collTrees = forwardTrees2Close();
         	if(!collTrees.isEmpty() && collTrees.size() > 1)
         	{

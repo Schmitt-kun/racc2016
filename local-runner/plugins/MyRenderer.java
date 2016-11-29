@@ -41,6 +41,7 @@ public class MyRenderer
 		wizzardHp(graphics, world, game);
 		position(graphics, world, game);
 		drawWaypoints(graphics, world, game);
+		drawCastRange(graphics, world);
 	}
 	
 	public static void init(World world, Game game)
@@ -80,6 +81,18 @@ public class MyRenderer
 		for(Point2I waypint : middleLane)
 		{
 			graphics.drawString("O", waypint.getX(), waypint.getY());
+		}
+	}
+	
+	public static void drawCastRange(Graphics graphics, World world)
+	{
+		graphics.setColor(Color.RED);
+		for(Wizard wizard : world.getWizards())
+		{	
+			int r = (int) wizard.getCastRange();
+			int x = (int) wizard.getX();
+			int y = (int) wizard.getY();
+			graphics.drawOval(x-r, y-r, x+r, y+r);
 		}
 	}
 	
